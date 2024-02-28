@@ -1,0 +1,187 @@
+version: "3"
+services:
+  mqttserver:
+    image: eclipse-mosquitto:2.0.18
+    container_name: mqttserver
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1024M"
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - rpi_net
+    volumes:
+      - type: bind
+        source: ./ops/mqtt_config/
+        target: /mosquitto/config/
+        read_only: true 
+
+  mongo_one:
+    image: mongo:4.4.18
+    container_name: mongo_one
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1024M"
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - type: tmpfs
+        target: /data/db
+    networks:
+      - rpi_net
+
+  mongo_two:
+    image: mongo:4.4.18
+    container_name: mongo_two
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1024M"
+    ports:
+      - "27018:27018"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - type: tmpfs
+        target: /data/db
+    command: mongod --port 27018
+    networks:
+      - rpi_net
+
+  cep_api_server:
+    extends:
+      file: /ops/base.yml
+      service: cep_configs  
+    build:
+      context: .
+      dockerfile: local.server.dockerfile
+    image: cep_api_server:1.0
+    container_name: cep_api_server
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1024M"
+    tty: true
+    restart: "no"
+    environment:
+      - DISTRIBUTION_TYPE=25
+      - SERVER_NAME=0.0.0.0
+      - SERVER_PORT=8080
+      - MQTT_HOST=mqttserver
+      - MQTT_PORT=1883
+      - TASK_LOAD_TYPE=0
+      - DATA_OPERATION_TIMEOUT=60
+      - DATA_MAX_CONNECTION=100
+      - EVAL_ACTIVE=0
+      - NOISE_SIZE=0
+      - SLEEP_DURATION=1
+    ports:
+      - "8080:8080"
+    networks:
+      - rpi_net
+    depends_on:
+      - mqttserver
+
+  client_one:
+    extends:
+      file: /ops/base.yml
+      service: cep_configs   
+    build:
+      context: .
+      dockerfile: local.client.dockerfile
+    image: client_one:1.0
+    container_name: client_one
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1024M"
+    tty: true
+    restart: "no"
+    environment:
+      - MONGO_ONE_HOST=mongo_one
+      - MONGO_ONE_PORT=27017
+      - HOST_NAME=client_one
+      - HOST_IP=0.0.0.0
+      - HOST_PORT=8081
+      - SERVER_NAME=cep_api_server
+      - SERVER_PORT=8080
+      - TASK_LOAD_TYPE=0
+      - VIDEO_PATH=sample_data/some_video.mp4
+      - AUDIO_PATH=sample_data/some_audio.wav
+      - DATA_OPERATION_TIMEOUT=60
+      - DATA_MAX_CONNECTION=100
+      - MQTT_HOST=mqttserver
+      - MQTT_PORT=1883
+      
+      - NOISE_SIZE=0
+      - SLEEP_DURATION=1
+      
+      - RAW_PRODUCER_ACTIVATED=1,1,0,0
+
+      - CP_CPU_LIMIT=0.5
+    ports:
+      - "8081:8081"
+    networks:
+      - rpi_net
+    depends_on:
+      - mongo_one
+
+  client_two:
+    extends:
+      file: /ops/base.yml
+      service: cep_configs  
+    build:
+      context: .
+      dockerfile: local.client.dockerfile
+    image: client_two:1.0
+    container_name: client_two
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "1024M"  
+    tty: true
+    restart: "no"
+    environment:
+      - MONGO_ONE_HOST=mongo_two
+      - MONGO_ONE_PORT=27018
+      - HOST_NAME=client_two
+      - HOST_IP=0.0.0.0
+      - HOST_PORT=8082
+      - SERVER_NAME=cep_api_server
+      - SERVER_PORT=8080
+      - TASK_LOAD_TYPE=0
+      - VIDEO_PATH=sample_data/some_video.mp4
+      - AUDIO_PATH=sample_data/some_audio.wav
+      - DATA_OPERATION_TIMEOUT=60
+      - DATA_MAX_CONNECTION=100
+      - SIM_DURATION=600
+      - NOISE_SIZE=0
+      - SLEEP_DURATION=1
+      - MQTT_HOST=mqttserver
+      - MQTT_PORT=1883  
+
+      - RAW_PRODUCER_ACTIVATED=0,0,1,1
+      - CP_CPU_LIMIT=0.5
+    ports:
+      - "8082:8082"
+    networks:
+      - rpi_net
+    depends_on:
+      - mongo_two 
+
+networks:
+  rpi_net:
+    name: hostbridge   
