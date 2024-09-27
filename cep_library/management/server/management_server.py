@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 
 import cep_library.configs as configs
 from cep_library.cep.model.cep_task import CEPTask
+from cep_library.management.distribution_algorithms.finalized_algorithms.genetic_algorithm import genetic_algorithm
 from cep_library.management.distribution_algorithms.finalized_algorithms.random_distribution import random_distribution
 from cep_library.management.distribution_algorithms.finalized_algorithms.greedy import \
     greedy
@@ -127,6 +128,8 @@ class ManagementServer:
                 return constrained_programming
             case 26:
                 return random_distribution
+            case 31:
+                return genetic_algorithm            
 
     def generate_data_task_graph(self) -> Topology:
         #region Topology
@@ -280,7 +283,7 @@ class ManagementServer:
         
         current_server_time_for_algorithm_only = time.perf_counter_ns()
         # Get alteration requests
-        if configs.env_distribution_type in [15, 16, 17, 18, 19, 20, 21, 22]:
+        if configs.env_distribution_type in [15, 16, 17, 18, 19, 20, 21, 22, 31]:
             alteration_requests, producer_updates, self.distribution_history = dist_action(self.workers, topology, self.statistic_records, self.producer_records, self.distribution_history)
         elif configs.env_distribution_type in [23, 24, 25]:
             alteration_requests, producer_updates, self.distribution_history, self.last_min_cost = dist_action(self.workers, topology, self.statistic_records, self.producer_records, self.distribution_history, self.last_min_cost, self.valid_stats_count)

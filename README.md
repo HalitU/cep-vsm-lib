@@ -74,6 +74,7 @@ Four different distributions are provided, as they are also mentioned in the pap
 - 21 => Complete round-robin
 - 25 => Constrained Programming optimization introduced in the paper.
 - 26 => Random distribution, set the history parameter to 1, so that the random distribtion will happen once and keep that until the end of the experiment. Otherwise doing random every period will introduce possible unnecessary migration penalty.
+- 31 => Genetic algorithm
 
 #### Other Operation Files
 ops directory includes a base yaml file that shows the different types of configurations.
